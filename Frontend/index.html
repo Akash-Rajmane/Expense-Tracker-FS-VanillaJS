@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav class="navbar bg-primary">
+            <div class="container-fluid">
+                <span class="navbar-brand mx-auto text-center h1 text-white">Expense Manager</span>
+            </div>  
+        </nav>
+    </header>
+    <main>
+        <section class="d-flex align-items-center justify-content-center">
+            <form class="d-flex flex-column align-items-start gap-3 mt-2" id="form">
+                <div class="d-flex flex-column">
+                    <label for="expense">Expense Amount</label>
+                    <input type="number" id="expense">
+                </div>
+                <div class="d-flex flex-column">
+                    <label for="desc">Description</label>
+                    <input type="text" id="desc">
+                </div>
+                <div class="d-flex flex-column">
+                    <label for="category">Choose Category</label>
+                    <select id="category">
+                        <option value="fuel">fuel</option>
+                        <option value="food">food</option>
+                        <option value="electricity">electricity</option>
+                        <option value="movie">movie</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" id="btn" type="submit">Add Expense</button>
+            </form>
+        </section>
+        <section class="d-flex flex-column justify-content-center align-items-center mt-4">
+            <ul id="items">
+            </ul>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const form = document.getElementById("form");
+        const ul = document.getElementById("items");
+        let editMode = false;
+        let expenseId = "";
+
+        // Function to populate the list from backend
+        async function populateListFromBackend() {
+            try {
+                const response = await axios.get("http://localhost:3000/expenses");
+                ul.innerHTML = ''; // Clear the existing list
+                response.data.forEach(expense => {
+                    const li = document.createElement("li");
+                    li.textContent = `${expense.amount}-${expense.description}-${expense.category}`;
+
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "X";
+                    delBtn.className = "delete btn btn-danger m-2";
+                    delBtn.addEventListener("click", () => deleteExpense(expense.id));
+                    li.appendChild(delBtn);
+
+                    const editBtn = document.createElement("button");
+                    editBtn.textContent = "Edit";
+                    editBtn.className = "edit btn btn-info m-2";
+                    editBtn.addEventListener("click", () => editExpense(expense));
+                    li.appendChild(editBtn);
+
+                    ul.appendChild(li);
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Populate the list when the page loads
+        window.addEventListener("DOMContentLoaded", populateListFromBackend);
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const expenseInput = document.getElementById("expense");
+            const descInput = document.getElementById("desc");
+            const category = document.getElementById("category");
+            const btn = document.getElementById("btn");
+
+            if(editMode){
+                try {
+                    await axios.put(`http://localhost:3000/expenses/${expenseId}`, {
+                        amount: expenseInput.value,
+                        description: descInput.value,
+                        category: category.value
+                    });
+                    populateListFromBackend(); // Update the list
+                    expenseInput.value = "";
+                    descInput.value = "";
+                } catch (error) {
+                    console.error(error);
+                }
+                editMode = false;
+                btn.innerText = "Add Expense";
+            }else{
+                if (expenseInput.value === "" || descInput.value === "") {
+                alert("Please enter all the fields");
+                } else {
+                    try {
+                        const expense = {
+                            amount: expenseInput.value,
+                            description: descInput.value,
+                            category: category.value,
+                        };
+                        await axios.post("http://localhost:3000/expenses", expense);
+                        populateListFromBackend(); // Update the list
+                        expenseInput.value = "";
+                        descInput.value = "";
+                    } catch (error) {
+                        console.error(error);
+                    }
+                }
+            }
+           
+        });
+
+        // Function to delete an expense
+        async function deleteExpense(id) {
+            try {
+                await axios.delete(`http://localhost:3000/expenses/${id}`);
+                populateListFromBackend(); // Update the list
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Function to edit an expense
+        async function editExpense(expense) {
+            const btn = document.getElementById("btn");
+            editMode = true;
+            btn.innerText = "Update Expense";
+            const expenseInput = document.getElementById("expense");
+            const descInput = document.getElementById("desc");
+            const category = document.getElementById("category");
+
+            expenseInput.value = expense.amount;
+            descInput.value = expense.description;
+            category.value = expense.category;
+            expenseId = expense.id;
+        }
+    </script>
+</body>
+</html>
